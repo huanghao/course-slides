@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}默认标题{% endblock %}</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+    {% block style %}{% endblock %}
+</head>
+<body>
+
+    <div class="navbar">
+        <a href="/">🏷️ 标注</a> |
+        <a href="/review">🖼️ 查看已标注</a> |
+        <a href="/select">📂 选择目录</a> |
+    </div>
+
+    <div id="messageBox" class="message-box"></div>
+
+    <!-- 放大图片 Modal -->
+    <div id="imageModal" class="modal" onclick="closeModal()">
+        <img id="modalImg" class="modal-content">
+    </div>
+
+    {% block content %}{% endblock %}
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    {% block script %}{% endblock %}
+</body>
+</html>

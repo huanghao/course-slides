@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}图片列表{% endblock %}
+
+{% block style %}
+<style>
+    .container { 
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(600px, 1fr)); /* 自动调整列数 */
+        gap: 15px;
+        justify-content: center;
+        padding: 20px;
+    }
+    .image-box { 
+        position: relative;
+        text-align: center;
+        padding: 10px;
+        border: 2px solid #ddd;
+        border-radius: 10px;
+    }
+    .image-box img { 
+        width: 100%;
+        max-width: 600px; /* 限制图片大小 */
+        border-radius: 5px;
+        display: block;
+    }
+
+    /* Hide non-slides when filtered */
+    .slides-only .image-box:not(.保留幻灯片) {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<h2>当前目录: {{ subdir }}</h2>
+{% set cnt = {} %}
+{% for _, _, res in image_info %}
+    {% set _ = cnt.update({res: cnt.get(res, 0) + 1}) %}
+{% endfor %}
+<p>共 {{ image_info|length }} 张图片。{% for res, n in cnt.items() %} {{res}}: {{n}} {% endfor %}</p>
+
+<div class="filter-controls">
+    <label>
+        <input type="radio" name="filter" value="all" checked> 全部
+    </label>
+    <label>
+        <input type="radio" name="filter" value="slides"> 仅幻灯片
+    </label>
+</div>
+
+<div class="container">
+    {% for image, ts, filtered_result in image_info %}
+    <div class="image-box {{ filtered_result|replace(' ', '-')|lower }}">
+        <div class="title">{{ ts }} | {{ filtered_result }}</div>
+        <img src="{{ url_for('images', filename=image) }}"
+            alt="{{ image }}"
+            onclick="openModal('{{ url_for('images', filename=image) }}')"
+            />
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+    const radioButtons = document.querySelectorAll('input[name="filter"]');
+    const container = document.querySelector('.container');
+
+    radioButtons.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'slides') {
+                container.classList.add('slides-only');
+            } else {
+                container.classList.remove('slides-only');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}已标注图片{% endblock %}
+
+{% block style %}
+<style>
+    .container { display: flex; justify-content: space-around; margin: 20px; }
+    .column { width: 45%; }
+    .title { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
+    .image-box { position: relative; text-align: center; }
+    .image-box img { width: 100%; border-radius: 5px; border: 2px solid #ccc; display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>已标注的图片</h2>
+
+<div class="container">
+    <div class="column">
+        <div class="title">✔ 正例</div>
+        <p>共 {{ positive_images|length }} 张</p>
+        <div id="positiveGrid" class="grid"></div>
+    </div>
+
+    <div class="column">
+        <div class="title">✖ 负例</div>
+        <p>共 {{ negative_images|length }} 张</p>
+        <div id="negativeGrid" class="grid"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+let positiveImages = {{ positive_images | tojson }};
+let negativeImages = {{ negative_images | tojson }};
+
+function loadImages(category) {
+    let container = document.getElementById(category + "Grid");
+    container.innerHTML = ""; // 清空当前内容
+    
+    let images = category === "positive" ? positiveImages : negativeImages;
+    
+    for (let i = 0; i < images.length; i++) {
+        let imgBox = document.createElement("div");
+        imgBox.className = "image-box";
+        
+        let img = document.createElement("img");
+        img.src = "/images/" + images[i];
+        img.alt = images[i];
+        img.title = images[i];
+        img.onclick = () => openModal(img.src); // 点击打开放大模式
+
+        imgBox.appendChild(img);
+        container.appendChild(imgBox);
+    }
+}
+
+window.onload = function () {
+    loadImages("positive");
+    loadImages("negative");
+};
+</script>
+{% endblock %}

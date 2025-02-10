@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}选择目录{% endblock %}
+
+{% block content %}
+<h2>请选择要查看的目录</h2>
+
+{% for directory in directories %}
+    <p><a href="{{ url_for('gallery', subdir=directory) }}">{{ directory }}</a></p>
+{% endfor %}
+
+{% endblock %}

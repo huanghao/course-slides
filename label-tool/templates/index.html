@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}批量图片标注工具{% endblock %}
+
+{% block style %}
+<style>
+    .container { 
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* 自动调整列数 */
+        gap: 15px;
+        justify-content: center;
+        padding: 20px;
+    }
+    .image-box { 
+        position: relative;
+        text-align: center;
+        padding: 10px;
+        border: 2px solid #ddd;
+        border-radius: 10px;
+    }
+    .image-box img { 
+        width: 100%;
+        max-width: 600px; /* 限制图片大小 */
+        border-radius: 5px;
+        display: block;
+    }
+
+    .label {
+        font-size: 16px;
+        font-weight: bold;
+        padding: 5px 10px;
+        border-radius: 5px;
+        display: inline-block;
+        margin-top: 5px;
+    }
+    .default-positive { background: green; color: white; } /* 默认正例 */
+    .default-negative { background: red; color: white; }   /* 默认负例 */
+
+    .btn-group {
+        display: flex;
+        justify-content: center;
+        gap: 5px;
+        margin-top: 5px;
+    }
+    .btn {
+        padding: 5px 15px;
+        font-size: 14px;
+        cursor: pointer;
+        border: none;
+        border-radius: 5px;
+        color: white;
+    }
+    .btn-positive { background: green; }
+    .btn-negative { background: red; }
+    .btn-test { background: gray; }
+    .btn-submit-one { background: lightblue; }
+    .btn-submit-batch { color: white; background: blue; font-size: 16px; padding: 10px; margin-top: 20px; cursor: pointer; }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>批量图片标注工具</h2>
+
+<p>{{ total_unlabeled }} 张未标注的图片</p>
+
+<label>
+    <input type="radio" name="labelType" value="select-negative" checked onchange="updateLabels()"> 选择负例（默认）
+</label>
+<label>
+    <input type="radio" name="labelType" value="select-positive" onchange="updateLabels()"> 选择正例
+</label>
+
+<div class="container" id="imageContainer"></div>
+<button class="btn-submit-batch" onclick="submitBatch()">提交当前批次</button>
+{% endblock %}
+
+{% block script %}
+<script>
+    let images = {{ images | tojson }};
+    let currentIndex = 0;
+    window.annotations = {}; // 记录用户手动标注的图片 { "图片名": "正" 或 "负" }
+
+    function loadNextBatch() {
+        let container = document.getElementById("imageContainer");
+
+        for (let i = 0; currentIndex < images.length; i++, currentIndex++) {
+            let imgPath = "/images/" + images[currentIndex];
+
+            let imgDiv = document.createElement("div");
+            imgDiv.className = "image-box";
+            imgDiv.dataset.image = images[currentIndex];
+
+            let imgElement = document.createElement("img");
+            imgElement.src = imgPath;
+            imgElement.alt = images[currentIndex];
+            imgElement.onclick = () => openModal(imgElement.src); // 点击打开放大模式
+
+            let labelDiv = document.createElement("div");
+            labelDiv.className = "label";
+            imgDiv.appendChild(imgElement);
+            imgDiv.appendChild(labelDiv);
+
+            let btnGroup = document.createElement("div");
+            btnGroup.className = "btn-group";
+
+            let btnPositive = document.createElement("button");
+            btnPositive.className = "btn btn-positive";
+            btnPositive.innerText = "正";
+            btnPositive.onclick = () => setLabel(imgDiv, "正");
+
+            let btnNegative = document.createElement("button");
+            btnNegative.className = "btn btn-negative";
+            btnNegative.innerText = "负";
+            btnNegative.onclick = () => setLabel(imgDiv, "负");
+
+            let btnTest = document.createElement("button");
+            btnTest.className = "btn btn-test";
+            btnTest.innerText = "test";
+            let image_related_name = images[currentIndex];
+            btnTest.onclick = () => predictImage(image_related_name);
+
+            let btnSubmitOne = document.createElement("button");
+            btnSubmitOne.className = "btn btn-submit-one";
+            btnSubmitOne.innerText = "提交";
+            btnSubmitOne.onclick = () => submitOne(imgDiv);
+
+            btnGroup.appendChild(btnPositive);
+            btnGroup.appendChild(btnNegative);
+            btnGroup.appendChild(btnTest);
+            btnGroup.appendChild(btnSubmitOne);
+            imgDiv.appendChild(btnGroup);
+            container.appendChild(imgDiv);
+        }
+
+        updateLabels();
+    }
+
+    function setLabel(imgDiv, label) {
+        let imageName = imgDiv.dataset.image;
+        window.annotations[imageName] = label;
+        updateLabels();
+    }
+
+    function updateLabels() {
+        let select_mode = document.querySelector('input[name="labelType"]:checked').value;
+
+        document.querySelectorAll(".image-box").forEach(imgDiv => {
+            let imageName = imgDiv.dataset.image;
+            let labelDiv = imgDiv.querySelector(".label");
+
+            let label;
+            if (imageName in window.annotations) {
+                label = window.annotations[imageName]; // 手动标注的不变
+            } else {
+                label = select_mode === "select-positive" ? "负" : "正"; // 未标注的按当前模式赋值
+            }
+
+            labelDiv.innerText = label === "正" ? "✔ 正例" : "✖ 负例";
+            labelDiv.classList.remove("default-positive", "default-negative");
+            labelDiv.classList.add(label === "正" ? "default-positive" : "default-negative");
+        });
+    }
+
+    function submitOne(imgDiv) {
+        let imageName = imgDiv.dataset.image;
+        let labelDiv = imgDiv.querySelector(".label");
+
+        let label;
+        if (imageName in window.annotations) {
+            label = window.annotations[imageName]; // 手动标注的不变
+        } else {
+            label = select_mode === "select-positive" ? "负" : "正"; // 未标注的按当前模式赋值
+        }
+
+        let one_label = {};
+        one_label[imageName] = label;
+
+        fetch("/submit_batch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(one_label)
+        }).then(response => response.json()).then(data => {
+            showMessage(`提交成功！标注了 ${Object.keys(window.annotations).length} 张图片`, true);
+        }).catch(error => console.error("提交失败:", error));
+    }
+
+    function submitBatch() {
+        let select_mode = document.querySelector('input[name="labelType"]:checked').value;
+
+        document.querySelectorAll(".image-box").forEach(imgDiv => {
+            let imageName = imgDiv.dataset.image;
+            let label;
+            if (!(imageName in window.annotations)) {
+                window.annotations[imageName] = select_mode === "select-positive" ? "负" : "正"; // 未标注的按当前模式赋值
+            }
+
+        });
+        console.log(window.annotations);
+
+        fetch("/submit_batch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(window.annotations)
+        }).then(response => response.json()).then(data => {
+            showMessage(`提交成功！标注了 ${Object.keys(window.annotations).length} 张图片`, true);
+        }).catch(error => console.error("提交失败:", error));
+    }
+
+    window.onload = loadNextBatch;
+</script>
+{% endblock %}
