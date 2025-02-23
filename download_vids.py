@@ -1,6 +1,7 @@
 import os
 import re
 import time
+import datetime
 import base64
 import argparse
 from contextlib import contextmanager
@@ -63,11 +64,11 @@ def save_screenshot(driver, video_url, base_folder):
     duration = int(
         driver.execute_script("return document.querySelector('video').duration")
     )  # 获取视频时长（秒）
-    print(f"视频总时长: {duration:.2f} 秒")
+    print(f"视频总时长: {duration:.2f} 秒", datetime.timedelta(seconds=duration))
     interval = 60  # 每 60 秒截取一张
 
     for timestamp in range(0, duration, interval):
-        print(f"跳转到 {timestamp} 秒并截图...")
+        print(f"跳转到 {timestamp} 秒并截图...", datetime.timedelta(seconds=timestamp))
         screenshot_path = os.path.join(
             screenshot_folder, f"screenshot_{timestamp:06d}.png"
         )
@@ -78,7 +79,7 @@ def save_screenshot(driver, video_url, base_folder):
         driver.execute_script(
             f"document.querySelector('video').currentTime = {timestamp};"
         )
-        time.sleep(3)  # 等待视频画面更新
+        time.sleep(4)  # 等待视频画面更新
 
         # **截图**
         # **从 `canvas` 获取 `video` 帧，避免整个网页截图**

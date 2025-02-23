@@ -5,15 +5,12 @@ import json
 from flask import Flask, render_template, request, jsonify, send_from_directory
 
 from model import load_model, predict as model_predict
+from config import IMAGE_PATH, POSITIVE_LABEL_FILE, NEGATIVE_LABEL_FILE
 
 app = Flask(__name__)
 
-# **配置**
-BASE_DIR = "/Users/huanghao/workspace/learning/llm/vids/video_screenshots"  # 你要标注的图片目录
-POSITIVE_LABEL_FILE = "positive_labels.txt"
-NEGATIVE_LABEL_FILE = "negative_labels.txt"
 BATCH_SIZE = 12  # 每次显示的图片数量
-
+MODEL_NAME = "slide_classifier_20250222_123401_004"
 model = None
 
 
@@ -22,17 +19,15 @@ def predict(image_path):
     """根据图片路径进行分类"""
     global model
     if model is None:
-        model = load_model()
+        model = load_model(MODEL_NAME)
 
     if not image_path:
         return jsonify({"error": "缺少 image_path 参数"}), 400
 
-    image_path = os.path.join(BASE_DIR, image_path)
-    print(image_path)
-    if not os.path.exists(image_path):
+    if not os.path.exists(IMAGE_PATH):
         return jsonify({"error": "图片文件不存在"}), 404
 
-    cls, output = model_predict(model, image_path)
+    cls, output = model_predict(model, IMAGE_PATH)
     return jsonify(
         {
             "result": "正例" if cls == 1 else "负例",
@@ -45,7 +40,7 @@ def predict(image_path):
 # **提供静态文件服务**
 @app.route("/images/<path:filename>")
 def images(filename):
-    return send_from_directory(BASE_DIR, filename)
+    return send_from_directory(IMAGE_PATH, filename)
 
 
 def load_labeled_images():
@@ -76,7 +71,7 @@ def get_all_images(base_dir):
 
 @app.route("/")
 def index():
-    all_images = get_all_images(BASE_DIR)
+    all_images = get_all_images(IMAGE_PATH)
     positive_images, negative_images = load_labeled_images()
     labeled_images = set(positive_images + negative_images)
     filtered_images = [img for img in all_images if img not in labeled_images]
@@ -127,7 +122,11 @@ def review():
 def select_directory():
     """显示 BASE_DIR 下的所有子目录"""
     directories = sorted(
-        [d for d in os.listdir(BASE_DIR) if os.path.isdir(os.path.join(BASE_DIR, d))]
+        [
+            d
+            for d in os.listdir(IMAGE_PATH)
+            if os.path.isdir(os.path.join(IMAGE_PATH, d))
+        ]
     )
     return render_template("select.html", directories=directories)
 
@@ -135,7 +134,7 @@ def select_directory():
 @app.route("/gallery/<path:subdir>")
 def gallery(subdir):
     """展示用户选择的子目录下的图片"""
-    target_dir = os.path.join(BASE_DIR, subdir)
+    target_dir = os.path.join(IMAGE_PATH, subdir)
     if not os.path.exists(target_dir):
         return "目录不存在", 404
 
