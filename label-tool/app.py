@@ -113,6 +113,9 @@ def review():
             int(x.split("_")[-1].split(".", 1)[0]),
         )
     )
+    # import random
+    # random.shuffle(positive_images)
+    # random.shuffle(negative_images)
     return render_template(
         "review.html", positive_images=positive_images, negative_images=negative_images
     )

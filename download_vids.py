@@ -39,9 +39,18 @@ def sanitize_filename(filename, replacement="_"):
     return filename
 
 
-def save_screenshot(driver, video_url, base_folder):
+def save_screenshot(
+    driver,
+    video_url,
+    base_folder,
+    seconds_of_capture_interval=60,
+    seconds_to_wait_seek_buffer=3,
+    seconds_to_wait_video_start=5,
+    seconds_to_wait_page_load=5,
+):
     driver.get(video_url)
-    time.sleep(5)  # 等待页面加载
+    print(f"等待{seconds_to_wait_page_load}秒加载页面...")
+    time.sleep(seconds_to_wait_page_load)  # 等待页面加载
 
     # 使用 JavaScript 控制播放
     driver.execute_script(
@@ -52,7 +61,7 @@ def save_screenshot(driver, video_url, base_folder):
         video.play();
     """
     )
-    time.sleep(5)  # 等待播放启动
+    time.sleep(seconds_to_wait_video_start)  # 等待播放启动
     title = driver.title.replace(" - YouTube", "").strip()
     print(f"视频标题: {title}")
 
@@ -64,11 +73,12 @@ def save_screenshot(driver, video_url, base_folder):
     duration = int(
         driver.execute_script("return document.querySelector('video').duration")
     )  # 获取视频时长（秒）
-    print(f"视频总时长: {duration:.2f} 秒", datetime.timedelta(seconds=duration))
-    interval = 60  # 每 60 秒截取一张
+    print(f"视频总时长: {duration:.2f} 秒({datetime.timedelta(seconds=duration)})")
 
-    for timestamp in range(0, duration, interval):
-        print(f"跳转到 {timestamp} 秒并截图...", datetime.timedelta(seconds=timestamp))
+    for timestamp in range(0, duration, seconds_of_capture_interval):
+        print(
+            f"跳转到 {timestamp} 秒({datetime.timedelta(seconds=timestamp)})并截图...",
+        )
         screenshot_path = os.path.join(
             screenshot_folder, f"screenshot_{timestamp:06d}.png"
         )
@@ -79,7 +89,7 @@ def save_screenshot(driver, video_url, base_folder):
         driver.execute_script(
             f"document.querySelector('video').currentTime = {timestamp};"
         )
-        time.sleep(4)  # 等待视频画面更新
+        time.sleep(seconds_to_wait_seek_buffer)  # 等待视频画面更新
 
         # **截图**
         # **从 `canvas` 获取 `video` 帧，避免整个网页截图**
@@ -109,6 +119,10 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("base_folder")
     p.add_argument("video_url")
+    p.add_argument("--wait-seek-buffer", default=3, type=int)
+    p.add_argument("--wait-video-start", default=5, type=int)
+    p.add_argument("--wait-page-load", default=3, type=int)
+    p.add_argument("--capture-interval", default=60, type=int)
     return p.parse_args()
 
 
